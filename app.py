@@ -146,7 +146,7 @@ class AliceHandler(BaseHTTPRequestHandler):
 # Render сам говорит на каком порту запускаться
 # ───────────────────────────────────────────────
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(("0.0.0.0", port), AliceHandler)
     print(f"Server started on port {port}")
     server.serve_forever()
