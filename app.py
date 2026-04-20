@@ -65,7 +65,7 @@ def build_tts(chunks, current_index):
 
     # Добавляем паузу 2 секунды между кусками
     if not is_last:
-        tts = chunk + ' <speaker audio="alice-sounds-animals-cat-1.opus"> '
+        tts = chunk + ' <speaker audio="alice-sounds-things-switch-1.opus"> '
     else:
         tts = chunk
 
