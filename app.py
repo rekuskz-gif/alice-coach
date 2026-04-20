@@ -5,6 +5,9 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 GOOGLE_DOC_ID = "1pBAau6Z9313yJkxveI5bSVzxJVsk4eaHIttzAj_xmls"
 
+# Максимум слов в одном куске — Алиса читает без остановок
+CHUNK_SIZE = 30
+
 def load_prompt():
     url = f"https://docs.google.com/document/d/{GOOGLE_DOC_ID}/export?format=txt"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -14,7 +17,7 @@ def load_prompt():
 def ask_claude(history, prompt):
     payload = json.dumps({
         "model": "claude-haiku-4-5",
-        "max_tokens": 800,
+        "max_tokens": 1000,  # Берём весь текст сразу
         "system": prompt,
         "messages": history
     }).encode("utf-8")
@@ -31,6 +34,43 @@ def ask_claude(history, prompt):
     with urllib.request.urlopen(req, timeout=9) as resp:
         return json.loads(resp.read().decode("utf-8"))["content"][0]["text"]
 
+def split_into_chunks(text, chunk_size=CHUNK_SIZE):
+    # Разбиваем текст на куски по chunk_size слов
+    # Стараемся резать по точкам и запятым
+    words = text.split()
+    chunks = []
+    current = []
+
+    for word in words:
+        current.append(word)
+        # Режем на границе предложения если накопилось достаточно слов
+        if len(current) >= chunk_size and word.endswith(('.', '!', '?', ',', '…')):
+            chunks.append(' '.join(current))
+            current = []
+
+    if current:
+        chunks.append(' '.join(current))
+
+    return chunks
+
+def build_tts(chunks, current_index):
+    # Строим TTS текст с паузами между кусками
+    # <speaker audio="..."> — это специальный тег Алисы для паузы
+    # Алиса сама переходит к следующей части после паузы
+    if current_index >= len(chunks):
+        return chunks[-1] if chunks else "", True
+
+    chunk = chunks[current_index]
+    is_last = current_index >= len(chunks) - 1
+
+    # Добавляем паузу 2 секунды между кусками
+    if not is_last:
+        tts = chunk + ' <speaker audio="alice-sounds-animals-cat-1.opus"> '
+    else:
+        tts = chunk
+
+    return tts, is_last
+
 class AliceHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
@@ -39,40 +79,82 @@ class AliceHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         body = {}
         coach_reply = "Извините, произошла ошибка. Попробуйте ещё раз."
+        tts_reply = coach_reply
         history = []
+        end_session = False
 
         try:
             length = int(self.headers.get("Content-Length", 0))
             body = json.loads(self.rfile.read(length).decode("utf-8"))
 
-            user_text = body.get("request", {}).get("original_utterance", "")
-            history = body.get("state", {}).get("session", {}).get("history", [])
+            user_text = body.get("request", {}).get("original_utterance", "").lower().strip()
+            session_state = body.get("state", {}).get("session", {})
+            history = session_state.get("history", [])
+            chunks = session_state.get("chunks", [])
+            chunk_index = session_state.get("chunk_index", 0)
 
-            if body.get("session", {}).get("new", False):
+            is_new_session = body.get("session", {}).get("new", False)
+
+            if is_new_session:
+                # Новая сессия — начинаем заново
                 history = []
+                chunks = []
+                chunk_index = 0
                 user_text = "начни"
 
-            history.append({"role": "user", "content": user_text})
-            coach_reply = ask_claude(history, load_prompt())
-            history.append({"role": "assistant", "content": coach_reply})
+            if chunks and chunk_index < len(chunks):
+                # Есть несохранённые куски — продолжаем читать
+                tts_reply, is_last = build_tts(chunks, chunk_index)
+                coach_reply = chunks[chunk_index]
+                chunk_index += 1
 
-            if len(history) > 20:
-                history = history[-20:]
+                if is_last:
+                    chunks = []
+                    chunk_index = 0
+
+            else:
+                # Новый запрос к Claude
+                history.append({"role": "user", "content": user_text})
+                full_reply = ask_claude(history, load_prompt())
+                history.append({"role": "assistant", "content": full_reply})
+
+                if len(history) > 20:
+                    history = history[-20:]
+
+                # Разбиваем ответ на куски
+                chunks = split_into_chunks(full_reply)
+                chunk_index = 0
+
+                tts_reply, is_last = build_tts(chunks, chunk_index)
+                coach_reply = chunks[chunk_index] if chunks else full_reply
+                chunk_index += 1
+
+                if is_last:
+                    chunks = []
+                    chunk_index = 0
+
+            print(f"TTS: {tts_reply[:80]}...")
 
         except Exception as e:
             print(f"ERROR {type(e).__name__}: {e}")
             import traceback
             traceback.print_exc()
+            chunks = []
+            chunk_index = 0
 
         response = {
             "version": body.get("version", "1.0"),
             "session": body.get("session", {}),
             "response": {
                 "text": coach_reply,
-                "tts": coach_reply,
-                "end_session": False
+                "tts": tts_reply,
+                "end_session": end_session
             },
-            "session_state": {"history": history}
+            "session_state": {
+                "history": history,
+                "chunks": chunks,
+                "chunk_index": chunk_index
+            }
         }
 
         response_bytes = json.dumps(response, ensure_ascii=False).encode("utf-8")
