@@ -6,7 +6,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 GOOGLE_DOC_ID = "1pBAau6Z9313yJkxveI5bSVzxJVsk4eaHIttzAj_xmls"
 
 # Максимум слов в одном куске — Алиса читает без остановок
-CHUNK_SIZE = 15
+CHUNK_SIZE = 25
 
 def load_prompt():
     url = f"https://docs.google.com/document/d/{GOOGLE_DOC_ID}/export?format=txt"
