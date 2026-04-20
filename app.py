@@ -17,7 +17,7 @@ def load_prompt():
 def ask_claude(history, prompt):
     payload = json.dumps({
         "model": "claude-haiku-4-5",
-        "max_tokens": 150,  # Берём весь текст сразу
+        "max_tokens": 80,  # Берём весь текст сразу
         "system": prompt,
         "messages": history
     }).encode("utf-8")
