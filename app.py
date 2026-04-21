@@ -3,9 +3,8 @@ import os
 import urllib.request
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-GOOGLE_DOC_ID = "1pBAau6Z9313yJkxveI5bSVzxJVsk4eaHIttzAj_xmls"
+GOOGLE_DOC_ID = "1h6xP3XmoWcLchbENV_HHtfdvSrcNTzwo4uHnheb0YzI"
 
-# Максимум слов в одном куске — Алиса читает без остановок
 CHUNK_SIZE = 25
 
 def load_prompt():
@@ -17,7 +16,7 @@ def load_prompt():
 def ask_claude(history, prompt):
     payload = json.dumps({
         "model": "claude-haiku-4-5",
-        "max_tokens": 80,  # Берём весь текст сразу
+        "max_tokens": 80,
         "system": prompt,
         "messages": history
     }).encode("utf-8")
@@ -35,15 +34,12 @@ def ask_claude(history, prompt):
         return json.loads(resp.read().decode("utf-8"))["content"][0]["text"]
 
 def split_into_chunks(text, chunk_size=CHUNK_SIZE):
-    # Разбиваем текст на куски по chunk_size слов
-    # Стараемся резать по точкам и запятым
     words = text.split()
     chunks = []
     current = []
 
     for word in words:
         current.append(word)
-        # Режем на границе предложения если накопилось достаточно слов
         if len(current) >= chunk_size and word.endswith(('.', '!', '?', ',', '…')):
             chunks.append(' '.join(current))
             current = []
@@ -54,20 +50,16 @@ def split_into_chunks(text, chunk_size=CHUNK_SIZE):
     return chunks
 
 def build_tts(chunks, current_index):
-    # Строим TTS текст с паузами между кусками
-    # <speaker audio="..."> — это специальный тег Алисы для паузы
-    # Алиса сама переходит к следующей части после паузы
     if current_index >= len(chunks):
         return chunks[-1] if chunks else "", True
 
     chunk = chunks[current_index]
     is_last = current_index >= len(chunks) - 1
 
-    # Добавляем паузу 2 секунды между кусками
     if not is_last:
         tts = chunk + ' <speaker audio="alice-sounds-things-switch-1.opus"> '
     else:
-        tts = chunk
+        tts = chunk + ' <speaker audio="alice-sounds-animals-cat-4.opus">'
 
     return tts, is_last
 
@@ -96,14 +88,12 @@ class AliceHandler(BaseHTTPRequestHandler):
             is_new_session = body.get("session", {}).get("new", False)
 
             if is_new_session:
-                # Новая сессия — начинаем заново
                 history = []
                 chunks = []
                 chunk_index = 0
                 user_text = "начни"
 
             if chunks and chunk_index < len(chunks):
-                # Есть несохранённые куски — продолжаем читать
                 tts_reply, is_last = build_tts(chunks, chunk_index)
                 coach_reply = chunks[chunk_index]
                 chunk_index += 1
@@ -113,7 +103,6 @@ class AliceHandler(BaseHTTPRequestHandler):
                     chunk_index = 0
 
             else:
-                # Новый запрос к Claude
                 history.append({"role": "user", "content": user_text})
                 full_reply = ask_claude(history, load_prompt())
                 history.append({"role": "assistant", "content": full_reply})
@@ -121,7 +110,6 @@ class AliceHandler(BaseHTTPRequestHandler):
                 if len(history) > 20:
                     history = history[-20:]
 
-                # Разбиваем ответ на куски
                 chunks = split_into_chunks(full_reply)
                 chunk_index = 0
 
@@ -167,7 +155,7 @@ class AliceHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"Alice Coach is running!")
+        self.wfile.write(b"Claude-alice is running!")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
