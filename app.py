@@ -70,7 +70,7 @@ class AliceHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = {}
-        coach_reply = "Извините, произошла ошибка. Попробуйте ещё раз."
+        coach_reply = "Извините отвлеклась. повторите ещё раз."
         tts_reply = coach_reply
         history = []
         end_session = False
