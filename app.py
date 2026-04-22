@@ -59,7 +59,7 @@ def build_tts(chunks, current_index):
     if not is_last:
         tts = chunk + ' <speaker audio="alice-sounds-things-switch-1.opus"> '
     else:
-        tts = chunk + ' <speaker audio="alice-sounds-animals-cat-4.opus">'
+        tts = chunk + ' <speaker audio="alice-sounds-things-switch-1.opus">'
 
     return tts, is_last
 
