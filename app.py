@@ -7,7 +7,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 GOOGLE_DOC_ID = "1pBAau6Z9313yJkxveI5bSVzxJVsk4eaHIttzAj_xmls"
 
 # Сколько слов отправлять Алисе за один раз (чтобы не было длинных пауз)
-CHUNK_SIZE = 15
+CHUNK_SIZE = 10
 
 # Токен бота и куда слать — берём из секретных переменных Render
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
