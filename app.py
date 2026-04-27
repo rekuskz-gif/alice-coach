@@ -7,7 +7,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 GOOGLE_DOC_ID = "1pBAau6Z9313yJkxveI5bSVzxJVsk4eaHIttzAj_xmls"
 
 # Максимум символов в одном кусочке для колонки
-CHUNK_SIZE = 80
+CHUNK_SIZE = 62
 
 # Токен бота и куда слать — берём из секретных переменных Render
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
