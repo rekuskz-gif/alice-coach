@@ -26,7 +26,7 @@ def ask_claude(history, prompt):
     # Отправляем историю разговора в Claude и получаем ответ коуча
     payload = json.dumps({
         "model": "claude-haiku-4-5",
-        "max_tokens": 40,
+        "max_tokens": 80,
         "system": prompt,
         "messages": history
     }).encode("utf-8")
